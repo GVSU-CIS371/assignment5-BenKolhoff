@@ -1,17 +1,15 @@
 <template>
-  <div class="froth">
-    <div
-      v-for=" in 5"
-      class="foam"
-      :style="{ backgroundColor: beverageStore.currentCreamer?.color }"
-    ></div>
+  <div class="froth" :style="{ height: props.creamerColor === 'transparent' ? '0%' : '20%' }">
+    <div v-for=" in 5" class="foam" :style="{ backgroundColor: props.creamerColor }"></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useBeverageStore } from "../stores/beverageStore";
+type CreamerProp = {
+  creamerColor: string;
+};
 
-const beverageStore = useBeverageStore();
+const props = defineProps<CreamerProp>();
 </script>
 <style lang="scss" scoped>
 .froth {

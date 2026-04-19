@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Beverage :isIced="beverageStore.currentTemp === 'Cold'" />
+    <Beverage :isIced="beverageStore.currentTemp === 'Cold'" :baseColor="beverageStore.currentBase!.color" :creamerColor="beverageStore.currentCreamer!.color" :syrupColor="beverageStore.currentSyrup!.color"/>
     <ul>
       <li>
         <template v-for="temp in beverageStore.temps" :key="temp">
@@ -16,65 +16,132 @@
           </label>
         </template>
       </li>
-    </ul>
-    <ul>
       <li>
-        <template v-for="b in beverageStore.bases" :key="b.id">
+        <template v-for="base in beverageStore.bases" :key="base.id">
           <label>
             <input
               type="radio"
-              name="bases"
-              :id="`r${b.id}`"
-              :value="b"
+              name="base"
+              :id="`r${base.id}`"
+              :value="base"
               v-model="beverageStore.currentBase"
             />
-            {{ b.name }}
+            {{ base.name }}
           </label>
         </template>
       </li>
-    </ul>
-    <ul>
       <li>
-        <template v-for="s in beverageStore.syrups" :key="s.id">
+        <template v-for="creamer in beverageStore.creamers" :key="creamer.id">
           <label>
             <input
               type="radio"
-              name="syrups"
-              :id="`r${s.id}`"
-              :value="s"
-              v-model="beverageStore.currentSyrup"
-            />
-            {{ s.name }}
-          </label>
-        </template>
-      </li>
-    </ul>
-    <ul>
-      <li>
-        <template v-for="c in beverageStore.creamers" :key="c.id">
-          <label>
-            <input
-              type="radio"
-              name="creamers"
-              :id="`r${c.id}`"
-              :value="c"
+              name="creamer"
+              :id="`r${creamer.id}`"
+              :value="creamer"
               v-model="beverageStore.currentCreamer"
             />
-            {{ c.name }}
+            {{ creamer.name }}
+          </label>
+        </template>
+      </li>
+      <li>
+        <template v-for="syrup in beverageStore.syrups" :key="syrup.id">
+          <label>
+            <input
+              type="radio"
+              name="syrup"
+              :id="`r${syrup.id}`"
+              :value="syrup"
+              v-model="beverageStore.currentSyrup"
+            />
+            {{ syrup.name }}
           </label>
         </template>
       </li>
     </ul>
-    <input type="text" placeholder="Beverage Name" />
-    <button>🍺 Make Beverage</button>
+    <div>
+      <label>{{ signedInText }}</label>
+      <button @click="withGoogle()">{{ signInButtonText }}</button>
+    </div>
+    <input v-model="beverageInputText" type="text" placeholder="Beverage Name" />
+    <button @click="addBeverage()" :disabled="!isSignedIn">🍺 Make Beverage</button>
+    <p>{{ currentMessage }}</p>
   </div>
-  <div id="beverage-container" style="margin-top: 20px"></div>
+  <div id="beverage-container" style="margin-top: 20px">
+    <template v-for="beverage in beverageStore.beverages" :key="beverage.id">
+      <label>
+        <button @click="showBeverage(beverage)">{{ beverage.name }}</button>
+      </label>
+    </template>
+  </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import Beverage from "./components/Beverage.vue";
 import { useBeverageStore } from "./stores/beverageStore";
+import { BeverageType } from './types/beverage';
+import {
+  GoogleAuthProvider,
+  signInWithPopup, 
+  getAuth,
+  User,
+  onAuthStateChanged
+} from "firebase/auth";
 const beverageStore = useBeverageStore();
+const beverageInputText = ref('');
+
+beverageStore.init();
+let isSignedIn = false;
+let currentMessage = "Please sign in to save your changes";
+let signInButtonText = "Sign in with Google";
+let signedInText = "";
+
+function addBeverage() {
+  if (beverageInputText.value != "") {
+    beverageStore.makeBeverage(beverageInputText.value);
+    currentMessage = "Successfully made " + beverageInputText.value + " beverage!";
+  } else {
+    currentMessage = "Please enter a name for the beverage";
+  }
+};
+
+function showBeverage(beverage: BeverageType) {
+  beverageStore.showBeverage(beverage);
+}
+
+function withGoogle() {
+  const auth = getAuth();
+  const provider = new GoogleAuthProvider();
+      
+  if (beverageStore.currentUser == null) {
+    signInWithPopup(auth, provider).then((result) => {      
+      beverageStore.setUser(result.user);    
+    }).catch((err) => {
+        currentMessage = "An error ocurred:\n" + err.toString()
+    });
+  } else {
+    auth.signOut();
+  }
+}
+
+const auth = getAuth();
+
+onAuthStateChanged(auth, (currentUser: User | null) => {
+  if (currentUser != null) {
+    currentMessage = "";
+    isSignedIn = true;
+    signedInText = "Signed in as " + currentUser.displayName;
+    signInButtonText = "Log out";
+  } else {
+    isSignedIn = false;
+    signedInText = "";
+    signInButtonText = "Sign in";
+    currentMessage = "Please sign in to save your changes";
+  }
+
+  beverageStore.setUser(currentUser);
+});
 </script>
 
 <style lang="scss">
